@@ -155,8 +155,8 @@ mongoose.connect(process.env.MONGODB_URI)
         // === MODEL REGISTRATION (CRITICAL FIX) ===
         // 🎯 Load models first to register schemas globally before routes run.
         try {
-            // NOTE: Assuming your User model is in ./models/user.js
-            require('./models/user'); 
+            
+            const User = require('./models/User'); 
         } catch (e) {
             console.error(`[${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}] ERROR: Failed to require model: ${e.message}`);
         }
@@ -232,7 +232,7 @@ mongoose.connect(process.env.MONGODB_URI)
         const Booking = mongoose.model('Booking', BookingSchema);
         const HeldSlot = mongoose.model('HeldSlot', HeldSlotSchema);
         const Admin = mongoose.model('Admin', AdminSchema);
-        // Note: The User model is already registered by requiring './models/user'
+        
 
         // === TURF ROUTES (Now models are safely registered) ===
         const turfRouter = require('./routes/turf');
