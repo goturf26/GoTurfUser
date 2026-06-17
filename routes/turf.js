@@ -6,6 +6,14 @@ const bcrypt = require('bcrypt');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const multer = require('multer');
+const cloudinary = require('cloudinary').v2;
+const { CloudinaryStorage } =
+require('multer-storage-cloudinary');
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
 const path = require('path');
 const fs = require('fs');
 const Razorpay = require('razorpay');
@@ -98,28 +106,23 @@ const TournamentRegistrationSchema = new mongoose.Schema({
     registeredAt: { type: Date, default: Date.now }
 }, { collection: 'tournamentRegistrations' });
 const TournamentRegistration = mongoose.model('TournamentRegistration', TournamentRegistrationSchema);
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const dir = path.join(__dirname, '../Uploads');
-        fs.mkdirSync(dir, { recursive: true });
-        cb(null, dir);
-    },
-    filename: (req, file, cb) => {
-        cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(file.originalname).toLowerCase()}`);
-    }
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'goturf_profiles',
+
+    allowed_formats: [
+      'jpg',
+      'jpeg',
+      'png'
+    ]
+  }
 });
 const uploadProfile = multer({
-    storage,
-    limits: { fileSize: 5 * 1024 * 1024 },
-    fileFilter: (req, file, cb) => {
-        const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
-        const ext = path.extname(file.originalname).toLowerCase();
-        if (allowed.includes(file.mimetype) || (file.mimetype === 'application/octet-stream' && ['.jpg', '.jpeg', '.png', '.gif'].includes(ext))) {
-            cb(null, true);
-        } else {
-            cb(new Error('Only JPEG, PNG, GIF allowed'));
-        }
-    }
+  storage,
+  limits: {
+     fileSize: 5 * 1024 * 1024
+  }
 }).single('profileImage');
 const handleProfileMulterError = (err, req, res, next) => {
     if (err instanceof multer.MulterError || err) {
@@ -333,12 +336,8 @@ router.post('/profile', authenticatePayment, uploadProfile, handleProfileMulterE
             return res.status(400).json({ success: false, message: 'Invalid userName' });
         }
         if (req.file) {
-            profileImagePath = `http://10.37.213.206:3000/Uploads/${req.file.filename}`;
-            const user = await db.collection('users').findOne({ userId });
-            if (user?.profileImagePath) {
-                const oldPath = path.join(__dirname, '../', user.profileImagePath.replace('http://10.37.213.206:3000/', ''));
-                if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
-            }
+            profileImagePath = req.file.path
+            
         }
         const result = await db.collection('users').updateOne(
             { userId },
@@ -552,6 +551,8 @@ router.get('/home', authenticatePayment, async (req, res) => {
                 const startDate = new Date(t.startDate);
                 if (isNaN(startDate)) continue;
                 if (startDate >= today && t.totalRegistered < t.maxTeams) {
+                    const baseUrl = `${req.protocol}://${req.get('host')}`;
+
                     tournaments.push({
                         id: t._id?.toString() || '',
                         turfId: turf.id,
@@ -564,7 +565,7 @@ router.get('/home', authenticatePayment, async (req, res) => {
                         maxTeams: t.maxTeams || 16,
                         totalRegistered: t.totalRegistered || 0,
                         venue: t.venue || turf.turfName,
-                        imageUrl: t.imageUrl || '',
+                        imageUrl: t.imageUrl? t.imageUrl.startsWith('http')? t.imageUrl: `${baseUrl}${t.imageUrl}`: '',
                         description: t.description || ''
                     });
                 }
