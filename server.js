@@ -1019,6 +1019,8 @@ app.get('/api/turf/:turfId/slots', async (req, res) => {
         });
 
         
+
+        
                 // IMPROVED CRON JOB WITH BOOKING REMINDERS + CLEANUP (FINAL ROBUST VERSION)
         cron.schedule('*/3 * * * *', async () => {  // Every 30 minutes (TEST MODE - change to */30 for production)
             try {

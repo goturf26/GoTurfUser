@@ -1116,30 +1116,12 @@ router.get('/public/turfs', async (req, res) => {
         count: 0,
         turfs: []
       });
-    }
-
-    const baseUrl = `https://goturfadmin.onrender.com`;  
+    } 
 
     const turfs = adminsWithTurf.map(admin => {
       const t = admin.currentTurf;
 
       let fullImageUrl = t.imageUrl || null;
-
-if (fullImageUrl) {
-
-  // Old local URL -> Render URL
-  fullImageUrl = fullImageUrl.replace(
-    'http://10.157.215.206:5000',
-    baseUrl
-  );
-
-  // Relative path -> full URL
-  if (!fullImageUrl.startsWith('http://') &&
-      !fullImageUrl.startsWith('https://')) {
-    fullImageUrl =
-      `${baseUrl}${fullImageUrl.startsWith('/') ? '' : '/'}${fullImageUrl}`;
-  }
-}
 
       let latitude = 9.9252;  // Madurai default
       let longitude = 78.1198;
