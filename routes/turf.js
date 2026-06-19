@@ -231,6 +231,41 @@ router.get('/public/turf/:turfId', async (req, res) => {
         res.status(500).json({ success: false, message: 'Server error' });
     }
 });
+
+router.get('/public-tournaments', async (req, res) => {
+  try {
+    const admins = await db.collection("admins").find().toArray();
+
+    let tournaments = [];
+
+    admins.forEach((admin) => {
+      if (admin.currentTurf?.tournaments?.length > 0) {
+        admin.currentTurf.tournaments.forEach((t) => {
+          tournaments.push({
+            name: t.name,
+            sport: t.sport,
+            imageUrl: t.imageUrl,
+            entryFee: t.entryFee,
+            prizePool: t.prizePool,
+            status: t.status
+          });
+        });
+      }
+    });
+
+    res.json({
+      success: true,
+      tournaments
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
 router.get('/tournament/:tournamentId', authenticatePayment, async (req, res) => {
     try {
         const { tournamentId } = req.params;
