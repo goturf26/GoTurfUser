@@ -22,7 +22,7 @@ const db = mongoose.connection.db;
 if (!db || !mongoose.connection.readyState) {
     throw new Error('MongoDB connection not initialized. Check server.js configuration.');
 }
-console.log(`[${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}] MongoDB connection ready for user_app_backend.js`);
+
 const rzp = new Razorpay({
     key_id: process.env.RAZORPAY_KEY_ID,
     key_secret: process.env.RAZORPAY_KEY_SECRET,
@@ -199,7 +199,7 @@ async function ensureTurfExists(turfId, turfName) {
                 bookingCount: 0
             }
         });
-        console.log(`[${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}] Auto-created turf: ${turfId}`);
+         
     }
 }
 // === PUBLIC TURF INFO ===
@@ -523,7 +523,7 @@ router.post('/google-login', async (req, res) => {
                     { _id: user._id },
                     { $set: { firebaseUid } }
                 );
-                console.log(`Linked firebaseUid to existing user: ${email}`);
+                 
             }
         }
         // Still no user? Create new one
@@ -546,7 +546,7 @@ router.post('/google-login', async (req, res) => {
                 createdAt: new Date()
             };
             await db.collection('users').insertOne(user);
-            console.log(`New Google user created: ${email}`);
+             
         }
         const jwtToken = jwt.sign(
             { userId: user.userId },
@@ -739,9 +739,9 @@ router.post('/booking/confirm', authenticatePayment, async (req, res) => {
                 { $set: { status: 'confirmed', paymentId } }
             );
 
-            console.log(`[SUCCESS] Booking confirmed via pending entry | OrderId: ${pendingBooking.orderId} | PaymentId: ${paymentId}`);
+             
         } else {
-            console.warn(`[WARNING] No pending booking found → Using fallback data | PaymentId: ${paymentId} | OrderId: ${clientOrderId || 'N/A'}`);
+             
         }
 
         const bookingId = `BOOK_${Date.now()}_${Math.floor(Math.random() * 1000)}`.toUpperCase();
@@ -999,7 +999,7 @@ router.post('/tournament/register', authenticatePayment, async (req, res) => {
       }
     );
 
-    console.log(`TOURNAMENT REGISTRATION SUCCESS: Team "${teamName}" registered by ${userId}`);
+     
 
     return res.json({
       success: true,
@@ -1224,7 +1224,7 @@ router.post('/booking/reserve', authenticatePayment, async (req, res) => {
 
         await HeldSlot.insertMany(holdDocs, { ordered: false }); // will fail if duplicate
 
-        console.log(`Reserved ${slots.length} slots for user ${userId} until ${expiresAt}`);
+         
 
         res.json({
             success: true,

@@ -18,7 +18,7 @@ const app = express();
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
-    console.log(`[${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}] Created uploads directory at ${uploadsDir}`);
+    
 }
 
 // Initialize Firebase Admin
@@ -33,7 +33,7 @@ try {
             privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
         }),
     });
-    console.log(`[${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}] Firebase Admin initialized`);
+    
 } catch (error) {
     console.error(`[${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}] Firebase Admin initialization error: ${error.message}, stack: ${error.stack}`);
     process.exit(1);
@@ -49,7 +49,7 @@ try {
         key_id: process.env.RAZORPAY_KEY_ID,
         key_secret: process.env.RAZORPAY_KEY_SECRET,
     });
-    console.log(`[${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}] Razorpay initialized`);
+    
 } catch (error) {
     console.error(`[${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}] Razorpay initialization error: ${error.message}, stack: ${error.stack}`);
     process.exit(1);
@@ -88,7 +88,7 @@ async function ensureTurfExists(turfId, turfName) {
                 }
             });
             
-            console.log(`[${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}] AUTO-CREATED TURF: ${turfId} → ${turfName}`);
+        
         }
     } catch (error) {
         console.error("ensureTurfExists error:", error.message);
@@ -111,7 +111,7 @@ async function sendNotificationToTopic(topic, title, body, data = {}) {
 
     try {
         await admin.messaging().send(message);
-        console.log(`[${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}] Notification sent to ${topic}: ${title}`);
+        
     } catch (error) {
         console.error(`[${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}] FCM Error: ${error.message}`);
     }
@@ -124,7 +124,7 @@ const uploadsPath = path.join(__dirname, '..', 'admin-backend', 'uploads');
 
 app.use('/uploads', express.static(uploadsPath));
 
-console.log('[USER BACKEND STATIC] Serving /uploads from shared folder:', uploadsPath);
+ 
 // Middleware
 app.use(cors({
     origin: '*',
@@ -132,15 +132,6 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
-
-// Log environment variables
-console.log(`[${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}] MONGODB_URI: ${process.env.MONGODB_URI ? 'Defined' : 'Not defined'}`);
-console.log(`[${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}] JWT_SECRET: ${process.env.JWT_SECRET ? 'Defined' : 'Not defined'}`);
-console.log(`[${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}] FIREBASE_PROJECT_ID: ${process.env.FIREBASE_PROJECT_ID ? 'Defined' : 'Not defined'}`);
-console.log(`[${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}] RAZORPAY_KEY_ID: ${process.env.RAZORPAY_KEY_ID ? 'Defined' : 'Not defined'}`);
-console.log(`[${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}] RAZORPAY_KEY_SECRET: ${process.env.RAZORPAY_KEY_SECRET ? 'Defined' : 'Not defined'}`);
-console.log(`[${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}] RAZORPAY_WEBHOOK_SECRET: ${process.env.RAZORPAY_WEBHOOK_SECRET ? 'Defined' : 'Not defined'}`);
 
 // MongoDB Connection
 if (!process.env.MONGODB_URI) {
@@ -242,20 +233,8 @@ mongoose.connect(process.env.MONGODB_URI)
                 path: layer.route.path,
                 methods: Object.keys(layer.route.methods).join(', '),
             }));
-        console.log(`[${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}] Turf routes loaded:`, turfRoutes);
+        
         app.use('/api', turfRouter);
-
-        // === LOG INCOMING REQUESTS ===
-        app.use((req, res, next) => {
-            console.log(`[${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}] Incoming request:`, {
-                method: req.method,
-                url: req.url,
-                ip: req.ip,
-                headers: req.headers,
-                body: req.body,
-            });
-            next();
-        });
 
         // === HEALTH CHECK ===
         app.get('/health', (req, res) => {
@@ -338,7 +317,7 @@ mongoose.connect(process.env.MONGODB_URI)
 
                     await usersCollection.insertOne(user);
                     isNewUser = true;
-                    console.log(`[${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}] New user registered: ${userId}`);
+                    
                 }
 
                 const jwtToken = jwt.sign(
@@ -371,9 +350,6 @@ mongoose.connect(process.env.MONGODB_URI)
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
 
-  console.log('\nMANUAL LOGIN ATTEMPT');
-  console.log('Username:', username);
-  console.log('Password length:', password?.length || 0);
 
   if (!username || !password) {
     return res.status(400).json({ success: false, message: 'Username and password required' });
@@ -493,7 +469,7 @@ app.post('/api/payments/create-order', async (req, res) => {
               } 
             }
           );
-          console.log(`Refreshed existing hold for user ${userId} → ${s.slot} on ${s.date}`);
+           
           continue;
         } else {
           // Held by someone else
@@ -516,7 +492,7 @@ app.post('/api/payments/create-order', async (req, res) => {
         paidAmount: payAmount,
         isAdvance: isAdvancePayment
       });
-      console.log(`New hold created for user ${userId} → ${s.slot} on ${s.date}`);
+       
     }
 
     // ────────────────────────────────────────────────
@@ -560,12 +536,6 @@ app.post('/api/payments/create-order', async (req, res) => {
     pendingBooking.orderId = razorpayOrder.id; // backward compatibility
     await pendingBooking.save();
 
-    console.log(
-      `PENDING BOOKING SAVED | BookingID: ${pendingBooking.bookingId} | ` +
-      `Advance: ${isAdvancePayment} | Pay: ₹${payAmount} | Total: ₹${total} | ` +
-      `OrderID: ${razorpayOrder.id}`
-    );
-
     // Success response
     res.json({
       success: true,
@@ -601,7 +571,7 @@ app.post('/api/webhook', express.raw({ type: 'application/json' }), async (req, 
             .digest('hex');
 
         if (generated !== signature) {
-            console.warn('Invalid webhook signature');
+             
             return res.status(400).json({ success: false, message: 'Invalid signature' });
         }
 
@@ -623,7 +593,7 @@ let booking = await Booking.findOne({
 
 
             if (!booking) {
-                console.log(`[Webhook] No booking found for Razorpay order: ${order_id} → Using fallback from notes`);
+                
                 return res.status(200).json({ success: true });
             }
 
@@ -649,7 +619,7 @@ let booking = await Booking.findOne({
                 }
             );
 
-            console.log(`Payment confirmed | Order: ${order_id} | Advance: ${wasAdvance}`);
+           
         }
 
         // Always respond 200 to Razorpay
@@ -766,12 +736,7 @@ app.post('/api/payments/verify-manual', async (req, res) => {
             slot: { $in: booking.slots.map(s => s.slot) }
         });
 
-        console.log(`[SUCCESS] Booking fully confirmed & synced`);
-        console.log(`   → Advance: ${isAdvance}`);
-        console.log(`   → Paid Now: ₹${paidNow}`);
-        console.log(`   → Balance Due: ₹${balance}`);
-        console.log(`=== MANUAL VERIFY END ===\n`);
-
+       
         res.json({
             success: true,
             message: "Booking confirmed successfully!",
@@ -1025,7 +990,7 @@ app.get('/api/turf/:turfId/slots', async (req, res) => {
         cron.schedule('*/3 * * * *', async () => {  // Every 30 minutes (TEST MODE - change to */30 for production)
             try {
                 const now = new Date();
-                console.log(`[${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}] ⏰ Running b booking reminder cron job...`);
+                
 
                 const reminders = [
                     { hours: 1,  text: '1 hour' },
@@ -1100,17 +1065,17 @@ app.get('/api/turf/:turfId/slots', async (req, res) => {
                             );
                             reminderCount++;
                             sent = true;
-                            console.log(`[${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}] Reminder sent: ${r.text} for booking ${booking.bookingId}`);
+                        
                         }
                     }
                 }
 
-                console.log(`[${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}] ✅ Sent ${reminderCount} booking reminders`);
+                
 
                 // === EXISTING CLEANUP LOGIC (KEEP THIS!) ===
                 const heldResult = await HeldSlot.deleteMany({ expiresAt: { $lt: now } });
                 if (heldResult.deletedCount > 0) {
-                    console.log(`[${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}] Cleared ${heldResult.deletedCount} expired held slots`);
+
                 }
 
                 const adminResult = await Admin.updateMany(
@@ -1125,7 +1090,7 @@ app.get('/api/turf/:turfId/slots', async (req, res) => {
                 );
 
                 if (adminResult.modifiedCount > 0) {
-                    console.log(`[${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}] Cleared expired heldSlots from ${adminResult.modifiedCount} turf admins`);
+                    
                 }
 
             } catch (error) {
