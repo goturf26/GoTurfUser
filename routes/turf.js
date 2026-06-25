@@ -680,7 +680,6 @@ router.post('/turf/:turfId/release-slots', authenticatePayment, async (req, res)
         }
         await db.collection('HeldSlot').deleteMany({
             turfId,
-            userId,
             date: { $in: slots.map(s => s.date) },
             slot: { $in: slots.map(s => s.slot) }
         });
