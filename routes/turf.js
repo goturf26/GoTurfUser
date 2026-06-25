@@ -657,24 +657,9 @@ router.post('/turf/:turfId/release-slots', authenticatePayment, async (req, res)
         const { turfId } = req.params;
         const slots = req.body;
         const userId = req.user.userId;
-        console.log("XXXXXXXXXXXXXXXXXXXXXXXX RELEASE ROUTE HIT XXXXXXXXXXXXXXXXXXXXXXXX");
-        console.log("USER ID FROM TOKEN:", userId);
-        console.log("SLOTS RECEIVED:", slots);
-
-
         if (!Array.isArray(slots) || slots.length === 0) {
             return res.status(400).json({ success: false, message: 'Slots array is required' });
         }
-        const adminDoc = await db.collection("admins").findOne({
-  "currentTurf.id": turfId
-});
-
-console.log(
-  "HELD SLOTS IN DATABASE:",
-  adminDoc?.currentTurf?.heldSlots
-);
-
-
         const result = await db.collection('admins').updateOne(
             { 'currentTurf.id': turfId },
             {
