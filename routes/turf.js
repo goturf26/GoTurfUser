@@ -657,7 +657,7 @@ router.post('/turf/:turfId/release-slots', authenticatePayment, async (req, res)
         const { turfId } = req.params;
         const slots = req.body;
         const userId = req.user.userId;
-        console.log("==== RELEASE DEBUG ====");
+        console.log("XXXXXXXXXXXXXXXXXXXXXXXX RELEASE ROUTE HIT XXXXXXXXXXXXXXXXXXXXXXXX");
         console.log("USER ID FROM TOKEN:", userId);
         console.log("SLOTS RECEIVED:", slots);
 
