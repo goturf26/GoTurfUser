@@ -803,12 +803,11 @@ router.post('/booking/confirm', authenticatePayment, async (req, res) => {
         }
 
         // Clean up HeldSlot collection
-        await db.collection('HeldSlot').deleteMany({
-            turfId,
-            userId,
-            date: { $in: slots.map(s => s.date) },
-            slot: { $in: slots.map(s => s.slot) }
-        });
+        await HeldSlot.deleteMany({
+   turfId,
+   date: { $in: slots.map(s => s.date) },
+   slot: { $in: slots.map(s => s.slot) }
+});
 
         // Only push to user if we didn't already use a pending booking (prevents duplicate)
         if (!pendingBooking) {
