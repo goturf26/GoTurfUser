@@ -678,11 +678,11 @@ router.post('/turf/:turfId/release-slots', authenticatePayment, async (req, res)
                 { $pull: { upcomingBookings: { date: { $in: slots.map(s => s.date) }, time: { $in: slots.map(s => s.slot) } } } }
             );
         }
-        await db.collection('HeldSlot').deleteMany({
-            turfId,
-            date: { $in: slots.map(s => s.date) },
-            slot: { $in: slots.map(s => s.slot) }
-        });
+        await HeldSlot.deleteMany({
+   turfId,
+   date: { $in: slots.map(s => s.date) },
+   slot: { $in: slots.map(s => s.slot) }
+});
         res.json({ success: true, message: 'Slots released', releasedCount: result.modifiedCount });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Server error' });
