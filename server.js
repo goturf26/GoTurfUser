@@ -430,15 +430,31 @@ app.post('/api/payments/create-order', async (req, res) => {
     if (!token) return res.status(401).json({ success: false, message: 'No token provided' });
 
     let decoded;
-    try {
-      decoded = await admin.auth().verifyIdToken(token);
-      if (decoded.uid !== userId) {
-        return res.status(403).json({ success: false, message: 'Unauthorized: user mismatch' });
-      }
-    } catch (err) {
-      console.error('Token verification failed:', err.message);
-      return res.status(401).json({ success: false, message: 'Invalid or expired token' });
+
+try {
+    decoded = await admin.auth().verifyIdToken(token);
+
+    if (decoded.uid != userId) {
+        return res.status(403).json({
+            success: false,
+            message: "Unauthorized"
+        });
     }
+
+} catch {
+
+    const jwtDecoded = jwt.verify(
+        token,
+        process.env.JWT_SECRET
+    );
+
+    if (jwtDecoded.userId != userId) {
+        return res.status(403).json({
+            success: false,
+            message: "Unauthorized"
+        });
+    }
+}
 
     // Auto-create turf if missing
     await ensureTurfExists(turfId, turfName);
@@ -944,7 +960,11 @@ app.get('/api/turf/:turfId/slots', async (req, res) => {
                 if (!authHeader || !authHeader.startsWith('Bearer ')) return res.status(401).json({ success: false, message: 'Unauthorized' });
                 const token = authHeader.split(' ')[1];
                 let decoded;
-                try { decoded = await admin.auth().verifyIdToken(token); } catch { return res.status(401).json({ success: false, message: 'Invalid token' }); }
+                try { const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+const user = await mongoose.connection.db.collection('users').findOne({
+    userId: decoded.userId
+}); } catch { return res.status(401).json({ success: false, message: 'Invalid token' }); }
 
                 const user = await mongoose.connection.db.collection('users').findOne({ firebaseUid: decoded.uid });
                 if (!user) return res.status(404).json({ success: false, message: 'User not found' });
@@ -961,28 +981,6 @@ app.get('/api/turf/:turfId/slots', async (req, res) => {
                 res.status(500).json({ success: false, message: 'Failed' });
             }
         });
-
-        // === /api/home (FOR BOOKINGS SCREEN) ===
-        app.get('/api/home', async (req, res) => {
-            try {
-                const token = req.headers.authorization?.split(' ')[1];
-                if (!token) return res.status(401).json({ success: false, message: 'Unauthorized' });
-
-                const decoded = await admin.auth().verifyIdToken(token);
-                const user = await mongoose.connection.db.collection('users').findOne({ firebaseUid: decoded.uid });
-                if (!user) return res.status(404).json({ success: false, message: 'User not found' });
-
-                const upcomingBookings = (user.upcomingBookings || [])
-                    .filter(b => b.status === 'confirmed')
-                    .sort((a, b) => new Date(b.bookedAt) - new Date(a.bookedAt));
-
-                res.json({ success: true, upcomingBookings });
-            } catch (error) {
-                console.error('Home API error:', error.message);
-                res.status(500).json({ success: false, message: 'Failed' });
-            }
-        });
-
         
 
         
