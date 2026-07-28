@@ -14,6 +14,12 @@ require('dotenv').config();
 const bcrypt = require('bcrypt');
 const app = express();
 
+app.use((req, res, next) => {
+    console.log(
+        `[${new Date().toLocaleString()}] ${req.method} ${req.originalUrl}`
+    );
+    next();
+});
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
@@ -398,6 +404,8 @@ app.post('/api/login', async (req, res) => {
 
 app.post('/api/payments/create-order', async (req, res) => {
   try {
+    console.log("🔥 CREATE ORDER API HIT");
+console.log(req.body);
     const { 
       userId, 
       turfId, 
@@ -498,18 +506,24 @@ try {
       }
 
       // No existing hold → create new one
-      await HeldSlot.create({
-        turfId,
-        date: s.date,
-        slot: s.slot,
-        userId,
-        expiresAt,
-        totalAmount: total,
-        paidAmount: payAmount,
-        isAdvance: isAdvancePayment
-      });
-      console.log("HeldSlot Created:");
+      const heldSlot = await HeldSlot.create({
+    turfId,
+    date: s.date,
+    slot: s.slot,
+    userId,
+    expiresAt,
+    totalAmount: total,
+    paidAmount: payAmount,
+    isAdvance: isAdvancePayment
+});
+
+console.log("HeldSlot Created:");
 console.log(heldSlot);
+
+const count = await HeldSlot.countDocuments();
+console.log("HeldSlot Count:", count);
+
+console.log("User Backend DB:", mongoose.connection.db.databaseName);
 
 const count = await HeldSlot.countDocuments();
 console.log("HeldSlot Count:", count);
