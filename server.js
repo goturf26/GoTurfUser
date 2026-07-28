@@ -524,10 +524,6 @@ const count = await HeldSlot.countDocuments();
 console.log("HeldSlot Count:", count);
 
 console.log("User Backend DB:", mongoose.connection.db.databaseName);
-
-const count = await HeldSlot.countDocuments();
-console.log("HeldSlot Count:", count);
-console.log("User Backend DB:", mongoose.connection.db.databaseName);
        
     }
 
