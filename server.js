@@ -468,64 +468,23 @@ try {
     await ensureTurfExists(turfId, turfName);
 
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour for payment
-
-    // ────────────────────────────────────────────────
-    // HOLD SLOTS – Allow same user to update existing hold
-    // ────────────────────────────────────────────────
     for (const s of slots) {
-      const existingHold = await HeldSlot.findOne({
+
+    const existingHold = await HeldSlot.findOne({
         turfId,
         date: s.date,
         slot: s.slot,
-      });
+        userId
+    });
 
-      if (existingHold) {
-        if (existingHold.userId === userId) {
-          // Same user → refresh expiry (allow re-order)
-          await HeldSlot.updateOne(
-            { _id: existingHold._id },
-            { 
-              $set: { 
-                expiresAt,
-                totalAmount: total,
-                paidAmount: payAmount,
-                isAdvance: isAdvancePayment
-              } 
-            }
-          );
-           
-          continue;
-        } else {
-          // Held by someone else
-          return res.status(409).json({
+    if (!existingHold) {
+        return res.status(409).json({
             success: false,
-            message: 'Slot is already reserved by another user',
-            conflictingSlot: { date: s.date, slot: s.slot }
-          });
-        }
-      }
-
-      // No existing hold → create new one
-      const heldSlot = await HeldSlot.create({
-    turfId,
-    date: s.date,
-    slot: s.slot,
-    userId,
-    expiresAt,
-    totalAmount: total,
-    paidAmount: payAmount,
-    isAdvance: isAdvancePayment
-});
-
-console.log("HeldSlot Created:");
-console.log(heldSlot);
-
-const count = await HeldSlot.countDocuments();
-console.log("HeldSlot Count:", count);
-
-console.log("User Backend DB:", mongoose.connection.db.databaseName);
-       
+            message: "Slot reservation expired. Please select the slot again."
+        });
     }
+
+}
 
     // ────────────────────────────────────────────────
     // SAVE PENDING BOOKING
