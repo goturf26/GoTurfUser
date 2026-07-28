@@ -508,6 +508,12 @@ try {
         paidAmount: payAmount,
         isAdvance: isAdvancePayment
       });
+      console.log("HeldSlot Created:");
+console.log(heldSlot);
+
+const count = await HeldSlot.countDocuments();
+console.log("HeldSlot Count:", count);
+console.log("User Backend DB:", mongoose.connection.db.databaseName);
        
     }
 
