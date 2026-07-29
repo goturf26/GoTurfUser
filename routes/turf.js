@@ -1225,7 +1225,17 @@ console.log(req.body);
             isAdvance: false
         }));
 
-        await HeldSlot.insertMany(holdDocs, { ordered: false }); 
+        console.log("====== RESERVE API CALLED ======");
+console.log(req.body);
+
+console.log("Before insert:");
+console.log(await HeldSlot.find({}));
+
+await HeldSlot.insertMany(holdDocs, { ordered: false });
+
+console.log("After insert:");
+console.log(await HeldSlot.find({}));
+console.log("Collection name:", HeldSlot.collection.name);
         console.log("HeldSlot inserted");
 
 const docs = await HeldSlot.find({});
