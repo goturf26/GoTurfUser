@@ -1216,6 +1216,7 @@ router.post('/booking/reserve', authenticatePayment, async (req, res) => {
             date: s.date,
             slot: s.slot,
             userId,
+            sport: sport.toUpperCase(), 
             expiresAt,
             totalAmount: req.body.totalAmount || 0,   // optional
             paidAmount: 0,

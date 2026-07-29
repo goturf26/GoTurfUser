@@ -199,6 +199,7 @@ mongoose.connect(process.env.MONGODB_URI)
             date: { type: String, required: true },
             slot: { type: String, required: true },
             userId: { type: String, required: true },
+            sport: { type: String, required: true },
             expiresAt: { type: Date, required: true },
             
             totalAmount: Number,
@@ -849,8 +850,10 @@ app.get('/api/turf/:turfId/slots', async (req, res) => {
         const turf = adminUser.currentTurf;
 
         // 1. Admin permanent holds (from admin document array)
-        const adminHeldSlots = (turf.heldSlots || [])
-            .filter(h => !date || h.date === date);
+        const adminHeldSlots = (turf.heldSlots || []).filter(h =>
+    (!date || h.date === date) &&
+    (!sport || (h.sport || '').toUpperCase() === sport.toUpperCase())
+);
 
         // 2. Full day hold check
         const dayHeld = (turf.heldDays || [])
@@ -858,10 +861,11 @@ app.get('/api/turf/:turfId/slots', async (req, res) => {
 
         // 3. Temporary user reservations — ONLY those not yet expired
         const userHeldSlots = await HeldSlot.find({
-            turfId,
-            ...(date && { date }),                // filter by specific date if provided
-            expiresAt: { $gte: now }              // only show holds that are still valid
-        }).lean();
+    turfId,
+    ...(date && { date }),
+    ...(sport && { sport: sport.toUpperCase() }),
+    expiresAt: { $gte: now }
+}).lean();
 
         // 4. Confirmed (paid) bookings — filtered by sport if provided
         const confirmedBookings = await Booking.find({
