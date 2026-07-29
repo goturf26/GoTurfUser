@@ -221,7 +221,16 @@ mongoose.connect(process.env.MONGODB_URI)
                 name: String,
                 sports: [String],
                 confirmedSlots: [{ date: String, slot: String, userId: String, paymentId: String, totalAmount: Number, paidAmount: Number, isAdvance: Boolean, bookedAt: Date }],
-                heldSlots: [{ date: String, slot: String, userId: String, expiresAt: Date }],
+                heldSlots: [{
+    sport: String,
+    date: String,
+    slot: String,
+    reason: String,
+    adminId: String,
+    userId: String,
+    expiresAt: Date,
+    timestamp: Date
+}],
                 heldDays: [{ date: String }],
                 bookingCount: { type: Number, default: 0 },
             },
