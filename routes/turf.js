@@ -1232,6 +1232,10 @@ console.log("Before insert:");
 console.log(await HeldSlot.find({}));
 
 await HeldSlot.insertMany(holdDocs, { ordered: false });
+console.log("===== USER BACKEND =====");
+console.log("Database:", mongoose.connection.name);
+console.log("Collection:", HeldSlot.collection.name);
+console.log("Host:", mongoose.connection.host);
 
 console.log("After insert:");
 console.log(await HeldSlot.find({}));
