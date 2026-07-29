@@ -812,123 +812,135 @@ app.post('/api/payments/create-tournament-order', async (req, res) => {
 app.get('/api/turf/:turfId/slots', async (req, res) => {
     try {
         const { turfId } = req.params;
-        const { date, sport } = req.query;
+        const { date } = req.query;
+
+        // Normalize sport
+        const sport = (req.query.sport || "").trim().toUpperCase();
 
         const authHeader = req.headers.authorization;
 
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            return res.status(401).json({ success: false, message: 'Unauthorized' });
+            return res.status(401).json({
+                success: false,
+                message: 'Unauthorized'
+            });
         }
 
         const token = authHeader.split(' ')[1];
         let userId;
 
-        // Try JWT first (your custom token)
         try {
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
             userId = decoded.userId || decoded.firebaseUid;
-        } catch (jwtError) {
-            // Fallback to Firebase ID token
+        } catch {
             try {
                 const decoded = await admin.auth().verifyIdToken(token);
                 userId = decoded.uid;
-            } catch (firebaseError) {
-                console.error('Token verification failed:', firebaseError.message);
-                return res.status(401).json({ success: false, message: 'Invalid token' });
+            } catch (e) {
+                return res.status(401).json({
+                    success: false,
+                    message: 'Invalid token'
+                });
             }
         }
 
-        // ──── IMPORTANT: Define now here ────
         const now = new Date();
 
-        // Get turf document
-        const adminUser = await Admin.findOne({ 'currentTurf.id': turfId });
+        const adminUser = await Admin.findOne({
+            'currentTurf.id': turfId
+        });
+
         if (!adminUser || !adminUser.currentTurf) {
-            return res.status(404).json({ success: false, message: 'Turf not found' });
+            return res.status(404).json({
+                success: false,
+                message: 'Turf not found'
+            });
         }
 
         const turf = adminUser.currentTurf;
 
-        // 1. Admin permanent holds (from admin document array)
-        const adminHeldSlots = (turf.heldSlots || []).filter(h =>
-    (!date || h.date === date) &&
-    (!sport || (h.sport || '').toUpperCase() === sport.toUpperCase())
-);
+        console.log("==================================");
+        console.log("Requested Sport :", sport);
+        console.log("Requested Date  :", date);
+        console.log("Held Slots DB   :", turf.heldSlots);
 
-        // 2. Full day hold check
-        const dayHeld = (turf.heldDays || [])
-            .some(d => d.date === date);
+        // Admin held slots
+        const adminHeldSlots = (turf.heldSlots || []).filter(h => {
+            const heldSport = (h.sport || "").trim().toUpperCase();
 
-        // 3. Temporary user reservations — ONLY those not yet expired
+            return (
+                h.date === date &&
+                heldSport === sport
+            );
+        });
+
+        console.log("Filtered Held Slots :", adminHeldSlots);
+
+        // Held Days
+        const dayHeld = (turf.heldDays || []).some(
+            d => d.date === date
+        );
+
+        // Temporary reservations
         const userHeldSlots = await HeldSlot.find({
-    turfId,
-    ...(date && { date }),
-    ...(sport && { sport: sport.toUpperCase() }),
-    expiresAt: { $gte: now }
-}).lean();
-
-        // 4. Confirmed (paid) bookings — filtered by sport if provided
-        const confirmedBookings = await Booking.find({
             turfId,
-            status: 'confirmed',
-            ...(date && { 'slots.date': date }),
-            ...(sport && { sport })               // better than { $exists: true }
+            date,
+            sport,
+            expiresAt: { $gte: now }
         }).lean();
 
-        // Flatten confirmed slots for response
+        // Confirmed bookings
+        const confirmedBookings = await Booking.find({
+            turfId,
+            status: "confirmed",
+            "slots.date": date,
+            sport
+        }).lean();
+
         const confirmedSlotsFlat = [];
-        for (const booking of confirmedBookings) {
-            for (const slot of booking.slots) {
-                if (!date || slot.date === date) {
+
+        confirmedBookings.forEach(b => {
+            b.slots.forEach(s => {
+                if (s.date === date) {
                     confirmedSlotsFlat.push({
-                        date: slot.date,
-                        slot: slot.slot,
-                        userId: booking.userId,
-                        // Optional: add more fields if frontend needs them
-                        // paymentId: booking.paymentId,
-                        // bookedAt: booking.bookedAt
+                        date: s.date,
+                        slot: s.slot,
+                        userId: b.userId
                     });
                 }
-            }
-        }
+            });
+        });
 
-        // Final response
-        res.status(200).json({
+        res.json({
             success: true,
-            operationStartTime: turf.operationStartTime || '06:00 AM',
-            operationEndTime: turf.operationEndTime || '10:00 PM',
+            operationStartTime: turf.operationStartTime || "06:00 AM",
+            operationEndTime: turf.operationEndTime || "10:00 PM",
 
-            // Red slots — admin permanent holds
             heldSlots: adminHeldSlots.map(h => ({
                 date: h.date,
                 slot: h.slot,
-                reason: h.reason || 'Held by admin'
+                reason: h.reason || "Held by admin"
             })),
 
-            // Orange slots — temporary user reservations (non-expired)
             reservedSlots: userHeldSlots.map(h => ({
                 date: h.date,
-                slot: h.slot,
-                // Optional: you can include expiresAt or userId if frontend wants to show countdown
-                // expiresAt: h.expiresAt?.toISOString()
+                slot: h.slot
             })),
 
-            // Green/gray slots — already confirmed bookings
             confirmedSlots: confirmedSlotsFlat,
 
-            // Full day blocked
-            heldDays: dayHeld ? [{ date, reason: 'Full day held' }] : [],
+            heldDays: dayHeld
+                ? [{ date, reason: "Full day held" }]
+                : [],
 
-            loggedInUserId: userId,
+            loggedInUserId: userId
         });
 
     } catch (error) {
-        console.error('Slot fetch error:', error.stack || error.message);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Failed to fetch slots',
-            // Only show detailed error in development (optional)
-            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        console.error(error);
+        res.status(500).json({
+            success: false,
+            message: "Server error"
         });
     }
 });
