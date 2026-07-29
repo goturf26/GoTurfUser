@@ -1172,6 +1172,8 @@ router.get('/public/turfs', async (req, res) => {
 });
 // turf.js (recommended place)
 router.post('/booking/reserve', authenticatePayment, async (req, res) => {
+  console.log("====== RESERVE API CALLED ======");
+console.log(req.body);
     try {
         const { turfId, slots, sport } = req.body;
         const userId = req.user.userId; // or firebaseUid — consistent with your auth
@@ -1224,6 +1226,10 @@ router.post('/booking/reserve', authenticatePayment, async (req, res) => {
         }));
 
         await HeldSlot.insertMany(holdDocs, { ordered: false }); 
+        console.log("HeldSlot inserted");
+
+const docs = await HeldSlot.find({});
+console.log("HeldSlots in DB:", docs);
         const saved = await HeldSlot.find({
     turfId,
     userId
