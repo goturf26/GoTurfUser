@@ -866,14 +866,26 @@ app.get('/api/turf/:turfId/slots', async (req, res) => {
 
         // Admin held slots
         const adminHeldSlots = (turf.heldSlots || []).filter(h => {
-            const heldSport = (h.sport || "").trim().toUpperCase();
 
-            return (
-                h.date === date &&
-                heldSport === sport
-            );
-        });
+    console.log("================================");
+    console.log("DB Sport      :", JSON.stringify(h.sport));
+    console.log("Request Sport :", JSON.stringify(sport));
+    console.log("DB Date       :", JSON.stringify(h.date));
+    console.log("Request Date  :", JSON.stringify(date));
 
+    const sportMatch =
+        (h.sport || "").trim().toUpperCase() ===
+        (sport || "").trim().toUpperCase();
+
+    const dateMatch =
+        (h.date || "").trim() ===
+        (date || "").trim();
+
+    console.log("Sport Match :", sportMatch);
+    console.log("Date Match  :", dateMatch);
+
+    return sportMatch && dateMatch;
+});
         console.log("Filtered Held Slots :", adminHeldSlots);
 
         // Held Days
