@@ -1223,7 +1223,13 @@ router.post('/booking/reserve', authenticatePayment, async (req, res) => {
             isAdvance: false
         }));
 
-        await HeldSlot.insertMany(holdDocs, { ordered: false }); // will fail if duplicate
+        await HeldSlot.insertMany(holdDocs, { ordered: false }); 
+        const saved = await HeldSlot.find({
+    turfId,
+    userId
+});
+
+console.log("Saved HeldSlots:", saved);
 
          
 
