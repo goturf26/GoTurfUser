@@ -1240,7 +1240,11 @@ console.log("Host:", mongoose.connection.host);
 console.log("After insert:");
 console.log(await HeldSlot.find({}));
 console.log("Collection name:", HeldSlot.collection.name);
-        console.log("HeldSlot inserted");
+console.log("HeldSlot inserted");
+console.log(
+    "HeldSlot Count:",
+    await HeldSlot.countDocuments({})
+);
 
 const docs = await HeldSlot.find({});
 console.log("HeldSlots in DB:", docs);
