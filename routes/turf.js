@@ -1233,6 +1233,28 @@ console.log(await HeldSlot.find({}));
 
 await HeldSlot.insertMany(holdDocs, { ordered: false });
 console.log("===== USER BACKEND =====");
+console.log("Database:", mongoose.connection.db.databaseName);
+console.log("Host:", mongoose.connection.host);
+console.log("Collection:", HeldSlot.collection.name);
+
+const collections =
+    await mongoose.connection.db.listCollections().toArray();
+
+console.log(
+    "Collections:",
+    collections.map(c => c.name)
+);
+
+console.log(
+    "HeldSlot Count:",
+    await HeldSlot.countDocuments({})
+);
+
+console.log(
+    "HeldSlots:",
+    await HeldSlot.find({})
+);
+console.log("===== USER BACKEND =====");
 console.log("Database:", mongoose.connection.name);
 console.log("Collection:", HeldSlot.collection.name);
 console.log("Host:", mongoose.connection.host);
