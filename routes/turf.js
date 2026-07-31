@@ -1298,8 +1298,8 @@ console.log(
     await HeldSlot.countDocuments({})
 );
 
-const docs = await HeldSlot.find({});
-console.log("HeldSlots in DB:", docs);
+const heldSlots = await HeldSlot.find({});
+console.log("HeldSlots in DB:", heldSlots);
         const saved = await HeldSlot.find({
     turfId,
     userId
