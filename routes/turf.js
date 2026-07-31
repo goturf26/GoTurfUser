@@ -1232,6 +1232,36 @@ console.log("Before insert:");
 console.log(await HeldSlot.find({}));
 
 await HeldSlot.insertMany(holdDocs, { ordered: false });
+// ALSO SAVE HELD SLOTS INSIDE ADMIN DOCUMENT
+const heldSlotsForAdmin = slots.map(s => ({
+    userId,
+    date: s.date,
+    slot: s.slot,
+    sport: sport.toUpperCase(),
+    heldAt: new Date(),
+    expiresAt
+}));
+
+await db.collection('admins').updateOne(
+    { 'currentTurf.id': turfId },
+    {
+        $push: {
+            'currentTurf.heldSlots': {
+                $each: heldSlotsForAdmin
+            }
+        }
+    }
+);
+const docs = await HeldSlot.find({});
+console.log("USER BACKEND HELDSLOTS");
+console.dir(docs,{depth:null});
+const rawDocs = await mongoose.connection.db
+    .collection("heldslots")
+    .find({})
+    .toArray();
+
+console.log("RAW COLLECTION DOCS");
+console.dir(rawDocs, { depth: null });
 console.log("===== USER BACKEND =====");
 console.log("Database:", mongoose.connection.db.databaseName);
 console.log("Host:", mongoose.connection.host);
