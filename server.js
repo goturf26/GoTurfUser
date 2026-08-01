@@ -892,33 +892,12 @@ app.get('/api/turf/:turfId/slots', async (req, res) => {
         }).lean();
 
         // Confirmed bookings
-        console.log("===== BOOKING QUERY DEBUG =====");
-
-const q1 = await Booking.find({ turfId }).lean();
-console.log("1. turfId only:", q1.length);
-
-const q2 = await Booking.find({
-    turfId,
-    status: "confirmed"
-}).lean();
-console.log("2. turfId + confirmed:", q2.length);
-
-const q3 = await Booking.find({
-    turfId,
-    status: "confirmed",
-    "slots.date": date
-}).lean();
-console.log("3. + date:", q3.length);
-
-const q4 = await Booking.find({
+        const confirmedBookings = await Booking.find({
     turfId,
     status: "confirmed",
     "slots.date": date,
-    sport
+    sport: new RegExp(`^${sport}$`, "i")
 }).lean();
-console.log("4. + sport:", q4.length);
-
-const confirmedBookings = q4;
 
         const confirmedSlotsFlat = [];
 
