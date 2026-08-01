@@ -1233,25 +1233,7 @@ console.log(await HeldSlot.find({}));
 
 await HeldSlot.insertMany(holdDocs, { ordered: false });
 // ALSO SAVE HELD SLOTS INSIDE ADMIN DOCUMENT
-const heldSlotsForAdmin = slots.map(s => ({
-    userId,
-    date: s.date,
-    slot: s.slot,
-    sport: sport.toUpperCase(),
-    heldAt: new Date(),
-    expiresAt
-}));
 
-await db.collection('admins').updateOne(
-    { 'currentTurf.id': turfId },
-    {
-        $push: {
-            'currentTurf.heldSlots': {
-                $each: heldSlotsForAdmin
-            }
-        }
-    }
-);
 const docs = await HeldSlot.find({});
 console.log("USER BACKEND HELDSLOTS");
 console.dir(docs,{depth:null});
