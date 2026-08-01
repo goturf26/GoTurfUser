@@ -414,8 +414,7 @@ app.post('/api/login', async (req, res) => {
 
 app.post('/api/payments/create-order', async (req, res) => {
   try {
-    console.log("🔥 CREATE ORDER API HIT");
-console.log(req.body);
+    
     const { 
       userId, 
       turfId, 
@@ -425,7 +424,7 @@ console.log(req.body);
       slots, 
       isAdvance,        
       advanceAmount,
-      sport                // optional but good to have
+      sport               
     } = req.body;
 
     const payAmount = parseFloat(amount);
@@ -640,8 +639,6 @@ app.post('/api/payments/verify-manual', async (req, res) => {
             return res.status(400).json({ success: false, message: 'paymentId and orderId required' });
         }
 
-        console.log(`\n=== MANUAL VERIFY START ===`);
-        console.log(`Payment ID: ${paymentId} | Order ID: ${orderId}`);
 
         // Find pending booking
         let booking = await Booking.findOne({
@@ -652,12 +649,12 @@ app.post('/api/payments/verify-manual', async (req, res) => {
         });
 
         if (!booking) {
-            console.log('[ERROR] No pending booking found for this orderId');
+            
             return res.status(404).json({ success: false, message: 'Booking not found' });
         }
 
         if (booking.status === 'confirmed') {
-            console.log('[INFO] Booking already confirmed - returning existing data');
+            
             return res.json({
                 success: true,
                 message: 'Already confirmed',
@@ -675,12 +672,7 @@ app.post('/api/payments/verify-manual', async (req, res) => {
         const balance = isAdvance ? (totalAmount - paidNow) : 0;
         const advanceAmt = isAdvance ? paidNow : totalAmount;
 
-        console.log('[DEBUG] Booking values from pending document:');
-        console.log('   isAdvance      :', isAdvance);
-        console.log('   paidNow        :', paidNow);
-        console.log('   totalAmount    :', totalAmount);
-        console.log('   calculated balance :', balance);
-        console.log('   advanceAmount  :', advanceAmt);
+        
 
         // Confirm in Bookings collection
         await Booking.findOneAndUpdate(
@@ -725,11 +717,7 @@ app.post('/api/payments/verify-manual', async (req, res) => {
             }
         );
 
-        console.log(`[USER PUSH] Modified ${userPushResult.modifiedCount} user document(s)`);
-
-
-        console.log("******** HELDSLOT DELETE CALLED ********");
-console.trace();
+       
 
         // Clear held slots
         await HeldSlot.deleteMany({
@@ -870,19 +858,11 @@ app.get('/api/turf/:turfId/slots', async (req, res) => {
 
         const turf = adminUser.currentTurf;
 
-        console.log("==================================");
-        console.log("Requested Sport :", sport);
-        console.log("Requested Date  :", date);
-        console.log("Held Slots DB   :", turf.heldSlots);
+      
 
         // Admin held slots
         const adminHeldSlots = (turf.heldSlots || []).filter(h => {
 
-    console.log("================================");
-    console.log("DB Sport      :", JSON.stringify(h.sport));
-    console.log("Request Sport :", JSON.stringify(sport));
-    console.log("DB Date       :", JSON.stringify(h.date));
-    console.log("Request Date  :", JSON.stringify(date));
 
     const sportMatch =
         (h.sport || "").trim().toUpperCase() ===
@@ -892,12 +872,11 @@ app.get('/api/turf/:turfId/slots', async (req, res) => {
         (h.date || "").trim() ===
         (date || "").trim();
 
-    console.log("Sport Match :", sportMatch);
-    console.log("Date Match  :", dateMatch);
+    
 
     return sportMatch && dateMatch;
 });
-        console.log("Filtered Held Slots :", adminHeldSlots);
+       
 
         // Held Days
         const dayHeld = (turf.heldDays || []).some(

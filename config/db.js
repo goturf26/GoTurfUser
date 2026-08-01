@@ -6,14 +6,6 @@ const connectDB = async () => {
 
     console.log("✅ MongoDB Connected");
 
-    console.log("==================================");
-    console.log("DATABASE:", mongoose.connection.db.databaseName);
-
-    const adminDb = mongoose.connection.db.admin();
-    const info = await adminDb.command({ hello: 1 });
-
-    console.log("PRIMARY SERVER:", info.primary);
-    console.log("==================================");
 
   } catch (error) {
     console.error('MongoDB connection error:', error);

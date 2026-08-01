@@ -1172,8 +1172,7 @@ router.get('/public/turfs', async (req, res) => {
 });
 // turf.js (recommended place)
 router.post('/booking/reserve', authenticatePayment, async (req, res) => {
-  console.log("====== RESERVE API CALLED ======");
-console.log(req.body);
+  
     try {
         const { turfId, slots, sport } = req.body;
         const userId = req.user.userId; // or firebaseUid — consistent with your auth
@@ -1225,69 +1224,15 @@ console.log(req.body);
             isAdvance: false
         }));
 
-        console.log("====== RESERVE API CALLED ======");
-console.log(req.body);
-
-console.log("Before insert:");
-console.log(await HeldSlot.find({}));
+        
 
 await HeldSlot.insertMany(holdDocs, { ordered: false });
 // ALSO SAVE HELD SLOTS INSIDE ADMIN DOCUMENT
 
 const docs = await HeldSlot.find({});
-console.log("USER BACKEND HELDSLOTS");
+
 console.dir(docs,{depth:null});
-const rawDocs = await mongoose.connection.db
-    .collection("heldslots")
-    .find({})
-    .toArray();
 
-console.log("RAW COLLECTION DOCS");
-console.dir(rawDocs, { depth: null });
-console.log("===== USER BACKEND =====");
-console.log("Database:", mongoose.connection.db.databaseName);
-console.log("Host:", mongoose.connection.host);
-console.log("Collection:", HeldSlot.collection.name);
-
-const collections =
-    await mongoose.connection.db.listCollections().toArray();
-
-console.log(
-    "Collections:",
-    collections.map(c => c.name)
-);
-
-console.log(
-    "HeldSlot Count:",
-    await HeldSlot.countDocuments({})
-);
-
-console.log(
-    "HeldSlots:",
-    await HeldSlot.find({})
-);
-console.log("===== USER BACKEND =====");
-console.log("Database:", mongoose.connection.name);
-console.log("Collection:", HeldSlot.collection.name);
-console.log("Host:", mongoose.connection.host);
-
-console.log("After insert:");
-console.log(await HeldSlot.find({}));
-console.log("Collection name:", HeldSlot.collection.name);
-console.log("HeldSlot inserted");
-console.log(
-    "HeldSlot Count:",
-    await HeldSlot.countDocuments({})
-);
-
-const heldSlots = await HeldSlot.find({});
-console.log("HeldSlots in DB:", heldSlots);
-        const saved = await HeldSlot.find({
-    turfId,
-    userId
-});
-
-console.log("Saved HeldSlots:", saved);
 
          
 
@@ -1331,20 +1276,14 @@ router.post('/booking/shorten-expiry', authenticatePayment, async (req, res) => 
             }
         );
 
-        // ===== ADD THIS BLOCK =====
-        console.log("========== SHORTEN EXPIRY ==========");
-        console.log("Modified Count:", result.modifiedCount);
-        console.log("New Expiry:", newExpiry);
+        
 
         const updatedDocs = await HeldSlot.find({
             turfId,
             userId
         });
 
-        console.log("Updated Documents:");
-        console.dir(updatedDocs, { depth: null });
-        console.log("==================================");
-        // ===== END OF BLOCK =====
+       
 
         res.json({
             success: true,
