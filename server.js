@@ -727,7 +727,9 @@ app.post('/api/payments/verify-manual', async (req, res) => {
 
         console.log(`[USER PUSH] Modified ${userPushResult.modifiedCount} user document(s)`);
 
-        
+
+        console.log("******** HELDSLOT DELETE CALLED ********");
+console.trace();
 
         // Clear held slots
         await HeldSlot.deleteMany({
