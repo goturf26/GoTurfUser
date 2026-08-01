@@ -1183,9 +1183,14 @@ router.post('/booking/reserve', authenticatePayment, async (req, res) => {
 
         // 1. Check if any slot is already taken / held / reserved
         const conflict = await HeldSlot.findOne({
-            turfId,
-            $or: slots.map(s => ({ date: s.date, slot: s.slot }))
-        });
+    turfId,
+    sport: sport.toUpperCase(),
+    $or: slots.map(s => ({
+        date: s.date,
+        slot: s.slot
+    })),
+    expiresAt: { $gt: new Date() }
+});
 
         if (conflict) {
             return res.status(409).json({
@@ -1197,10 +1202,14 @@ router.post('/booking/reserve', authenticatePayment, async (req, res) => {
 
         // 2. Also check confirmed bookings (extra safety)
         const confirmedConflict = await Booking.findOne({
-            turfId,
-            status: 'confirmed',
-            $or: slots.map(s => ({ 'slots.date': s.date, 'slots.slot': s.slot }))
-        });
+    turfId,
+    status: 'confirmed',
+    sport: new RegExp(`^${sport}$`, 'i'),
+    $or: slots.map(s => ({
+        'slots.date': s.date,
+        'slots.slot': s.slot
+    }))
+});
 
         if (confirmedConflict) {
             return res.status(409).json({
