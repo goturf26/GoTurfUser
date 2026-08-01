@@ -1317,7 +1317,7 @@ router.post('/booking/shorten-expiry', authenticatePayment, async (req, res) => 
 
         const newExpiry = new Date(Date.now() + 2 * 60 * 1000);
 
-        await HeldSlot.updateMany(
+        const result = await HeldSlot.updateMany(
             {
                 turfId,
                 userId,
@@ -1330,6 +1330,21 @@ router.post('/booking/shorten-expiry', authenticatePayment, async (req, res) => 
                 }
             }
         );
+
+        // ===== ADD THIS BLOCK =====
+        console.log("========== SHORTEN EXPIRY ==========");
+        console.log("Modified Count:", result.modifiedCount);
+        console.log("New Expiry:", newExpiry);
+
+        const updatedDocs = await HeldSlot.find({
+            turfId,
+            userId
+        });
+
+        console.log("Updated Documents:");
+        console.dir(updatedDocs, { depth: null });
+        console.log("==================================");
+        // ===== END OF BLOCK =====
 
         res.json({
             success: true,
