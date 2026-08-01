@@ -913,6 +913,17 @@ app.get('/api/turf/:turfId/slots', async (req, res) => {
             });
         });
 
+        console.log("========== SLOT API DEBUG ==========");
+console.log("Logged In User:", userId);
+
+console.log("Confirmed Bookings:");
+console.dir(confirmedBookings, { depth: null });
+
+console.log("Confirmed Slots Flat:");
+console.dir(confirmedSlotsFlat, { depth: null });
+
+console.log("====================================");
+
         res.json({
             success: true,
             operationStartTime: turf.operationStartTime || "06:00 AM",
