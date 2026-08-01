@@ -1310,4 +1310,39 @@ console.log("Saved HeldSlots:", saved);
     }
 });
 
+router.post('/booking/shorten-expiry', authenticatePayment, async (req, res) => {
+    try {
+        const { turfId, slots } = req.body;
+        const userId = req.user.userId;
+
+        const newExpiry = new Date(Date.now() + 2 * 60 * 1000);
+
+        await HeldSlot.updateMany(
+            {
+                turfId,
+                userId,
+                date: { $in: slots.map(s => s.date) },
+                slot: { $in: slots.map(s => s.slot) }
+            },
+            {
+                $set: {
+                    expiresAt: newExpiry
+                }
+            }
+        );
+
+        res.json({
+            success: true,
+            expiresAt: newExpiry
+        });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({
+            success: false,
+            message: "Server error"
+        });
+    }
+});
+
 module.exports = router;  
