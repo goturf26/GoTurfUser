@@ -1269,7 +1269,7 @@ router.post('/booking/shorten-expiry', authenticatePayment, async (req, res) => 
         const { turfId, slots } = req.body;
         const userId = req.user.userId;
 
-        const newExpiry = new Date(Date.now() + 2 * 60 * 1000);
+        const newExpiry = new Date(Date.now() + 5 * 1000);
 
         const result = await HeldSlot.updateMany(
             {
