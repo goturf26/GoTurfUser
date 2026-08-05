@@ -936,9 +936,10 @@ console.log("====================================");
             })),
 
             reservedSlots: userHeldSlots.map(h => ({
-                date: h.date,
-                slot: h.slot
-            })),
+    date: h.date,
+    slot: h.slot,
+    userId: h.userId
+})),
 
             confirmedSlots: confirmedSlotsFlat,
 
