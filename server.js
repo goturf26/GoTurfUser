@@ -252,6 +252,7 @@ mongoose.connect(process.env.MONGODB_URI)
             }));
         
         app.use('/api', turfRouter);
+        app.use('/api', routeRoutes);
 
         // === HEALTH CHECK ===
         app.get('/health', (req, res) => {
