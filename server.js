@@ -243,6 +243,7 @@ mongoose.connect(process.env.MONGODB_URI)
 
         // === TURF ROUTES (Now models are safely registered) ===
         const turfRouter = require('./routes/turf');
+        const routeRoutes = require('./routes/routes');
         const turfRoutes = turfRouter.stack
             .filter(layer => layer.route)
             .map(layer => ({
