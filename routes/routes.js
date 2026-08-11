@@ -48,8 +48,8 @@ if (
                     origin: {
                         location: {
                             latLng: {
-                                latitude: origin.latitude,
-                                longitude: origin.longitude
+                                latitude: originLatitude,
+                                longitude: originLongitude
                             }
                         }
                     },
@@ -57,8 +57,8 @@ if (
                     destination: {
                         location: {
                             latLng: {
-                                latitude: destination.latitude,
-                                longitude: destination.longitude
+                                latitude: destinationLatitude,
+                                longitude: destinationLongitude
                             }
                         }
                     },
