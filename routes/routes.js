@@ -79,13 +79,17 @@ if (
         const data = await response.json();
 
         if (!response.ok) {
-            console.error('Google Routes API error:', data);
+    console.error(
+        'Google Routes API error:',
+        JSON.stringify(data, null, 2)
+    );
 
-            return res.status(response.status).json({
-                success: false,
-                message: 'Unable to calculate route'
-            });
-        }
+    return res.status(response.status).json({
+        success: false,
+        message: 'Unable to calculate route',
+        googleError: data
+    });
+}
 
         if (!data.routes || data.routes.length === 0) {
             return res.status(404).json({
