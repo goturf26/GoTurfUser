@@ -5,19 +5,23 @@ router.post('/routes', async (req, res) => {
     try {
         const { origin, destination } = req.body;
 
-        if (
-            !origin ||
-            !destination ||
-            typeof origin.latitude !== 'number' ||
-            typeof origin.longitude !== 'number' ||
-            typeof destination.latitude !== 'number' ||
-            typeof destination.longitude !== 'number'
-        ) {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid origin or destination'
-            });
-        }
+        const originLatitude = Number(origin?.latitude);
+const originLongitude = Number(origin?.longitude);
+
+const destinationLatitude = Number(destination?.latitude);
+const destinationLongitude = Number(destination?.longitude);
+
+if (
+    !Number.isFinite(originLatitude) ||
+    !Number.isFinite(originLongitude) ||
+    !Number.isFinite(destinationLatitude) ||
+    !Number.isFinite(destinationLongitude)
+) {
+    return res.status(400).json({
+        success: false,
+        message: 'Invalid origin or destination'
+    });
+}
 
         const apiKey = process.env.GOOGLE_ROUTES_API_KEY;
 
