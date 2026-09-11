@@ -122,6 +122,74 @@ async function sendNotificationToTopic(topic, title, body, data = {}) {
         console.error(`[${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}] FCM Error: ${error.message}`);
     }
 }
+app.post('/api/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+    try {
+        const signature = req.headers['x-razorpay-signature'];
+        const generated = crypto
+            .createHmac('sha256', process.env.RAZORPAY_WEBHOOK_SECRET)
+            .update(req.body)
+            .digest('hex');
+
+        if (generated !== signature) {
+             
+            return res.status(400).json({ success: false, message: 'Invalid signature' });
+        }
+
+        const event = JSON.parse(req.body.toString());
+
+        if (event.event === 'payment.captured') {
+            const payment = event.payload.payment.entity;
+            const { payment_id, order_id } = payment;
+
+            // SEARCH BY razorpayOrderId — BULLETPROOF VERSION
+let booking = await Booking.findOne({
+    $or: [
+        { razorpayOrderId: order_id },
+        { orderId: order_id },
+        { razorpayPaymentId: order_id }  // extra safety in case someone mixed up
+    ]
+});
+
+
+
+            if (!booking) {
+                
+                return res.status(200).json({ success: true });
+            }
+
+            const wasAdvance = booking.isAdvance === true;
+            const paidNow = booking.paidAmount;
+            const total = booking.totalAmount;
+
+            await Booking.findOneAndUpdate(
+                { _id: booking._id },
+                {
+                    $set: {
+                        paymentId: payment_id,
+                        razorpayPaymentId: payment_id,
+                        status: 'confirmed',
+                        paidAt: new Date(),
+
+                        // FINAL CORRECT STATUS
+                        paymentStatus: wasAdvance ? 'partial' : 'full',
+                        isFullyPaid: !wasAdvance,
+                        balanceAmount: wasAdvance ? (total - paidNow) : 0,
+                        advanceAmount: wasAdvance ? paidNow : total,
+                    }
+                }
+            );
+
+           
+        }
+
+        // Always respond 200 to Razorpay
+        res.status(200).json({ success: true });
+    } catch (error) {
+        console.error('Webhook error:', error.message);
+        res.status(500).json({ success: false });
+    }
+});
+
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -564,74 +632,6 @@ try {
     });
   }
 });
-app.post('/api/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
-    try {
-        const signature = req.headers['x-razorpay-signature'];
-        const generated = crypto
-            .createHmac('sha256', process.env.RAZORPAY_WEBHOOK_SECRET)
-            .update(req.body)
-            .digest('hex');
-
-        if (generated !== signature) {
-             
-            return res.status(400).json({ success: false, message: 'Invalid signature' });
-        }
-
-        const event = JSON.parse(req.body.toString());
-
-        if (event.event === 'payment.captured') {
-            const payment = event.payload.payment.entity;
-            const { payment_id, order_id } = payment;
-
-            // SEARCH BY razorpayOrderId — BULLETPROOF VERSION
-let booking = await Booking.findOne({
-    $or: [
-        { razorpayOrderId: order_id },
-        { orderId: order_id },
-        { razorpayPaymentId: order_id }  // extra safety in case someone mixed up
-    ]
-});
-
-
-
-            if (!booking) {
-                
-                return res.status(200).json({ success: true });
-            }
-
-            const wasAdvance = booking.isAdvance === true;
-            const paidNow = booking.paidAmount;
-            const total = booking.totalAmount;
-
-            await Booking.findOneAndUpdate(
-                { _id: booking._id },
-                {
-                    $set: {
-                        paymentId: payment_id,
-                        razorpayPaymentId: payment_id,
-                        status: 'confirmed',
-                        paidAt: new Date(),
-
-                        // FINAL CORRECT STATUS
-                        paymentStatus: wasAdvance ? 'partial' : 'full',
-                        isFullyPaid: !wasAdvance,
-                        balanceAmount: wasAdvance ? (total - paidNow) : 0,
-                        advanceAmount: wasAdvance ? paidNow : total,
-                    }
-                }
-            );
-
-           
-        }
-
-        // Always respond 200 to Razorpay
-        res.status(200).json({ success: true });
-    } catch (error) {
-        console.error('Webhook error:', error.message);
-        res.status(500).json({ success: false });
-    }
-});
-
 // MANUAL VERIFY FOR LOCAL TESTING + FULL PUSH TO USER & ADMIN
 app.post('/api/payments/verify-manual', async (req, res) => {
     try {
