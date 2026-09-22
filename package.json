@@ -23,7 +23,6 @@
     "firebase-admin": "^13.5.0",
     "firebase-functions": "^6.4.0",
     "google-auth-library": "^9.15.1",
-    "goturf-backend": "file:",
     "jsonwebtoken": "^9.0.2",
     "jws": "^4.0.1",
     "mongoose": "^8.16.0",
