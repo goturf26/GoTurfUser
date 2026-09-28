@@ -482,6 +482,74 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
+// === REFRESH GOTURF JWT ===
+app.post('/api/auth/refresh', async (req, res) => {
+    try {
+        const { firebaseToken } = req.body;
+
+        if (!firebaseToken) {
+            return res.status(400).json({
+                success: false,
+                message: 'Firebase token required'
+            });
+        }
+
+        // Verify Firebase ID token
+        let decoded;
+
+        try {
+            decoded = await admin.auth().verifyIdToken(firebaseToken);
+        } catch (error) {
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid Firebase token'
+            });
+        }
+
+        const firebaseUid = decoded.uid;
+
+        // Find GoTurf user
+        const db = mongoose.connection.db;
+
+        const user = await db.collection('users').findOne({
+            firebaseUid: firebaseUid
+        });
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        // Generate new GoTurf JWT
+        const token = jwt.sign(
+            {
+                userId: user.userId,
+                firebaseUid: user.firebaseUid
+            },
+            process.env.JWT_SECRET,
+            {
+                expiresIn: '7d'
+            }
+        );
+
+        return res.status(200).json({
+            success: true,
+            token: token
+        });
+
+    } catch (error) {
+        console.error('Refresh token error:', error.message);
+
+        return res.status(500).json({
+            success: false,
+            message: 'Server error'
+        });
+    }
+});
+
+
 app.post('/api/payments/create-order', async (req, res) => {
   try {
     
