@@ -212,6 +212,18 @@ app.post(
       console.log('Razorpay Order ID:', orderId);
       console.log('Razorpay Payment ID:', paymentId);
 
+      const Booking = mongoose.models.Booking;
+const HeldSlot = mongoose.models.HeldSlot;
+
+if (!Booking || !HeldSlot) {
+  console.error('❌ Booking or HeldSlot model is not registered');
+
+  return res.status(500).json({
+    success: false,
+    message: 'Database models not initialized'
+  });
+}
+
       const booking = await Booking.findOne({
         $or: [
           { razorpayOrderId: orderId },
