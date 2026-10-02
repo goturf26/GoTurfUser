@@ -476,52 +476,60 @@ async function reconcileCapturedPayment({
 }
 
 async function reconcilePendingPayments() {
-  try {
-    const pendingBookings = await Booking.find({
-      paymentStatus: "pending",
-      razorpayOrderId: { $exists: true, $ne: null }
-    })
-      .sort({ bookedAt: 1 })
-      .limit(100);
+    try {
+        const Booking = mongoose.models.Booking;
 
-    if (!pendingBookings.length) {
-      return;
-    }
-
-    for (const booking of pendingBookings) {
-      try {
-        const orderId = booking.razorpayOrderId;
-
-        const payments = await rzp.orders.fetchPayments(orderId);
-
-        const capturedPayment = payments.items?.find(
-          payment =>
-            payment.order_id === orderId &&
-            payment.status === "captured"
-        );
-
-        if (!capturedPayment) {
-          continue;
+        if (!Booking) {
+            throw new Error('Booking model is not initialized');
         }
 
-        await reconcileCapturedPayment({
-          orderId,
-          paymentId: capturedPayment.id
-        });
+        const pendingBookings = await Booking.find({
+            paymentStatus: 'pending',
+            status: 'pending',
+            razorpayOrderId: { $exists: true, $ne: null }
+        })
+            .sort({ bookedAt: 1 })
+            .limit(100);
 
-      } catch (error) {
+        if (!pendingBookings.length) {
+            return;
+        }
+
+        for (const booking of pendingBookings) {
+            try {
+                const orderId = booking.razorpayOrderId;
+
+                const payments = await rzp.orders.fetchPayments(orderId);
+
+                const capturedPayment = payments.items?.find(
+                    payment =>
+                        payment.order_id === orderId &&
+                        payment.status === 'captured'
+                );
+
+                if (!capturedPayment) {
+                    continue;
+                }
+
+                await reconcileCapturedPayment({
+                    orderId,
+                    paymentId: capturedPayment.id,
+                    paymentEntity: capturedPayment
+                });
+
+            } catch (error) {
+                console.error(
+                    `Pending payment reconciliation failed for booking ${booking.bookingId}:`,
+                    error.message
+                );
+            }
+        }
+    } catch (error) {
         console.error(
-          `Pending payment reconciliation failed for booking ${booking.bookingId}:`,
-          error.message
+            'Pending payment reconciliation failed:',
+            error.message
         );
-      }
     }
-  } catch (error) {
-    console.error(
-      "Pending payment reconciliation failed:",
-      error.message
-    );
-  }
 }
 
 
@@ -1057,9 +1065,13 @@ app.post('/api/payments/create-order', async (req, res) => {
             slots,
             amount,
             totalAmount,
-            isAdvance,
-            advanceAmount
+            isAdvance
         } = req.body;
+
+
+        // =========================================================
+        // 1. BASIC VALIDATION
+        // =========================================================
 
         if (
             !userId ||
@@ -1072,7 +1084,14 @@ app.post('/api/payments/create-order', async (req, res) => {
                 success: false,
                 message: 'Invalid booking details'
             });
+
         }
+
+
+        // =========================================================
+        // 2. FIREBASE AUTHENTICATION
+        // =========================================================
+
         const token =
             req.headers.authorization?.split(' ')[1];
 
@@ -1082,7 +1101,9 @@ app.post('/api/payments/create-order', async (req, res) => {
                 success: false,
                 message: 'Authentication required'
             });
+
         }
+
 
         let decoded;
 
@@ -1097,7 +1118,9 @@ app.post('/api/payments/create-order', async (req, res) => {
                 success: false,
                 message: 'Invalid authentication token'
             });
+
         }
+
 
         if (decoded.uid !== userId) {
 
@@ -1105,10 +1128,20 @@ app.post('/api/payments/create-order', async (req, res) => {
                 success: false,
                 message: 'Unauthorized user'
             });
+
         }
 
-        const Booking = mongoose.models.Booking;
-        const HeldSlot = mongoose.models.HeldSlot;
+
+        // =========================================================
+        // 3. GET MODELS
+        // =========================================================
+
+        const Booking =
+            mongoose.models.Booking;
+
+        const HeldSlot =
+            mongoose.models.HeldSlot;
+
 
         if (!Booking || !HeldSlot) {
 
@@ -1116,42 +1149,136 @@ app.post('/api/payments/create-order', async (req, res) => {
                 success: false,
                 message: 'Booking system unavailable'
             });
+
         }
+
 
         const now = new Date();
 
-        const holdQueries = slots.map(item => ({
-            turfId: turfId,
-            userId: userId,
-            date: item.date,
-            slot: item.slot,
-            expiresAt: {
-                $gt: now
-            }
+
+        // =========================================================
+        // 4. NORMALIZE / VALIDATE SLOTS
+        // =========================================================
+
+        const normalizedSlots = slots.map(item => ({
+            date: String(item.date),
+            slot: String(item.slot)
         }));
+
+
+        const uniqueSlotKeys =
+            new Set(
+                normalizedSlots.map(
+                    item => `${item.date}__${item.slot}`
+                )
+            );
+
+
+        if (
+            uniqueSlotKeys.size !==
+            normalizedSlots.length
+        ) {
+
+            return res.status(400).json({
+                success: false,
+                message: 'Duplicate slots detected'
+            });
+
+        }
+
+
+        // =========================================================
+        // 5. VERIFY ACTIVE HELD SLOTS
+        //
+        // IMPORTANT:
+        // The booking is allowed only if every requested slot
+        // belongs to THIS USER and is still active.
+        // =========================================================
+
+        const holdQueries =
+            normalizedSlots.map(item => ({
+                turfId: turfId,
+                userId: userId,
+                date: item.date,
+                slot: item.slot,
+                expiresAt: {
+                    $gt: now
+                }
+            }));
+
 
         const heldSlots =
             await HeldSlot.find({
                 $or: holdQueries
             });
 
-        if (heldSlots.length !== slots.length) {
+
+        if (
+            heldSlots.length !==
+            normalizedSlots.length
+        ) {
 
             return res.status(409).json({
                 success: false,
                 message:
                     'One or more selected slots are no longer available'
             });
+
         }
 
+
+        // =========================================================
+        // 6. MAKE SURE EVERY REQUESTED SLOT WAS FOUND
+        // =========================================================
+
+        const heldSlotKeys =
+            new Set(
+                heldSlots.map(
+                    hold =>
+                        `${hold.date}__${hold.slot}`
+                )
+            );
+
+
+        for (const slot of normalizedSlots) {
+
+            const key =
+                `${slot.date}__${slot.slot}`;
+
+            if (!heldSlotKeys.has(key)) {
+
+                return res.status(409).json({
+                    success: false,
+                    message:
+                        `Slot ${slot.date} ${slot.slot} is no longer available`
+                });
+
+            }
+
+        }
+
+
+        // =========================================================
+        // 7. SERVER-SIDE BOOKING AMOUNT
+        //
+        // NEVER TRUST amount / totalAmount FROM FLUTTER.
+        // =========================================================
+
         const serverTotalAmount =
-            Number(heldSlots[0].totalAmount || 0);
+            Number(
+                heldSlots[0].totalAmount || 0
+            );
+
 
         const serverPaidAmount =
-            Number(heldSlots[0].paidAmount || 0);
+            Number(
+                heldSlots[0].paidAmount || 0
+            );
+
 
         const serverIsAdvance =
             heldSlots[0].isAdvance === true;
+
 
         if (
             serverTotalAmount <= 0 ||
@@ -1160,9 +1287,31 @@ app.post('/api/payments/create-order', async (req, res) => {
 
             return res.status(400).json({
                 success: false,
-                message: 'Invalid server-side booking amount'
+                message:
+                    'Invalid server-side booking amount'
             });
+
         }
+
+
+        // =========================================================
+        // 8. VERIFY ALL HELD SLOTS HAVE SAME BOOKING DATA
+        // =========================================================
+
+        const serverSport =
+            heldSlots[0].sport;
+
+
+        if (!serverSport) {
+
+            return res.status(400).json({
+                success: false,
+                message:
+                    'Sport information missing from held slot'
+            });
+
+        }
+
 
         for (const hold of heldSlots) {
 
@@ -1173,16 +1322,30 @@ app.post('/api/payments/create-order', async (req, res) => {
                 Number(hold.paidAmount || 0) !==
                     serverPaidAmount ||
 
-                hold.isAdvance !== serverIsAdvance
+                hold.isAdvance !==
+                    serverIsAdvance ||
+
+                hold.sport !==
+                    serverSport
             ) {
 
                 return res.status(409).json({
                     success: false,
                     message:
-                        'Booking amount information is inconsistent'
+                        'Booking information is inconsistent'
                 });
+
             }
+
         }
+
+
+        // =========================================================
+        // 9. OPTIONAL CLIENT AMOUNT CHECK
+        //
+        // This is only a consistency check.
+        // Server values remain authoritative.
+        // =========================================================
 
         if (
             amount !== undefined &&
@@ -1192,9 +1355,12 @@ app.post('/api/payments/create-order', async (req, res) => {
 
             return res.status(400).json({
                 success: false,
-                message: 'Payment amount mismatch'
+                message:
+                    'Payment amount mismatch'
             });
+
         }
+
 
         if (
             totalAmount !== undefined &&
@@ -1204,103 +1370,281 @@ app.post('/api/payments/create-order', async (req, res) => {
 
             return res.status(400).json({
                 success: false,
-                message: 'Total amount mismatch'
+                message:
+                    'Total amount mismatch'
             });
+
         }
+
+
+        // =========================================================
+        // 10. GET TURF NAME FROM DATABASE
+        //
+        // Do NOT trust turfName sent by Flutter.
+        // =========================================================
+
+        const db =
+            mongoose.connection.db;
+
+
+        const adminTurf =
+            await db.collection('admins').findOne(
+                {
+                    'currentTurf.id': turfId
+                },
+                {
+                    projection: {
+                        'currentTurf.turfName': 1,
+                        'currentTurf.name': 1,
+                        name: 1
+                    }
+                }
+            );
+
+
+        const serverTurfName =
+            adminTurf?.currentTurf?.turfName ||
+            adminTurf?.currentTurf?.name ||
+            adminTurf?.name;
+
+
+        if (!serverTurfName) {
+
+            return res.status(404).json({
+                success: false,
+                message:
+                    'Turf information not found'
+            });
+
+        }
+
+
+        // =========================================================
+        // 11. CHECK FOR EXISTING PENDING BOOKING
+        // =========================================================
 
         const existingPendingBooking =
             await Booking.findOne({
+
                 userId: userId,
+
                 turfId: turfId,
+
                 status: 'pending',
+
+                paymentStatus: 'pending',
+
                 'slots.date': {
-                    $in: slots.map(s => s.date)
+                    $in:
+                        normalizedSlots.map(
+                            s => s.date
+                        )
                 },
+
                 'slots.slot': {
-                    $in: slots.map(s => s.slot)
+                    $in:
+                        normalizedSlots.map(
+                            s => s.slot
+                        )
                 }
+
             });
+
 
         if (existingPendingBooking) {
 
-            return res.json({
-                success: true,
-                existingBooking: true,
+            // Existing booking already has Razorpay order
+            if (
+                existingPendingBooking.razorpayOrderId
+            ) {
 
-                bookingId:
-                    existingPendingBooking.bookingId,
+                return res.json({
 
-                orderId:
-                    existingPendingBooking.razorpayOrderId,
+                    success: true,
 
-                amount:
-                    existingPendingBooking.paidAmount
-            });
-        }
-
-        const booking = await Booking.create({
-
-            userId: userId,
-
-            turfId: turfId,
-
-            slots: slots,
-
-            totalAmount: serverTotalAmount,
-
-            paidAmount: serverPaidAmount,
-
-            isAdvance: serverIsAdvance,
-
-            advanceAmount: serverIsAdvance
-                ? serverPaidAmount
-                : serverTotalAmount,
-
-            balanceAmount: serverIsAdvance
-                ? Math.max(
-                    serverTotalAmount -
-                    serverPaidAmount,
-                    0
-                )
-                : 0,
-
-            status: 'pending',
-
-            paymentStatus: 'pending',
-
-            bookedAt: new Date(),
-
-            expiresAt: new Date(
-                now.getTime() +
-                60 * 60 * 1000
-            )
-        });
-
-        const razorpayOrder =
-            await rzp.orders.create({
-
-                amount:
-                    Math.round(
-                        serverPaidAmount * 100
-                    ),
-
-                currency: 'INR',
-
-                receipt:
-                    String(booking._id),
-
-                notes: {
+                    existingBooking: true,
 
                     bookingId:
-                        String(booking._id),
+                        existingPendingBooking.bookingId,
 
-                    userId:
-                        userId,
+                    orderId:
+                        existingPendingBooking.razorpayOrderId,
 
-                    turfId:
-                        turfId
-                }
+                    // Flutter currently expects this key
+                    order_id:
+                        existingPendingBooking.razorpayOrderId,
+
+                    amount:
+                        existingPendingBooking.paidAmount
+
+                });
+
+            }
+
+
+            // A broken pending booking exists without
+            // a Razorpay order. Remove it so a clean
+            // booking can be created below.
+            await Booking.deleteOne({
+                _id:
+                    existingPendingBooking._id
             });
+
+        }
+
+
+        // =========================================================
+        // 12. CREATE UNIQUE BOOKING ID
+        // =========================================================
+
+        const bookingId =
+            uuidv4();
+
+
+        // =========================================================
+        // 13. CREATE PENDING BOOKING BEFORE RAZORPAY
+        // =========================================================
+
+        const booking =
+            await Booking.create({
+
+                bookingId:
+
+                    bookingId,
+
+                userId:
+
+                    userId,
+
+                turfId:
+
+                    turfId,
+
+                turfName:
+
+                    serverTurfName,
+
+                slots:
+
+                    normalizedSlots,
+
+                sport:
+
+                    serverSport,
+
+                totalAmount:
+
+                    serverTotalAmount,
+
+                paidAmount:
+
+                    serverPaidAmount,
+
+                isAdvance:
+
+                    serverIsAdvance,
+
+                advanceAmount:
+
+                    serverIsAdvance
+                        ? serverPaidAmount
+                        : serverTotalAmount,
+
+                balanceAmount:
+
+                    serverIsAdvance
+                        ? Math.max(
+                            serverTotalAmount -
+                            serverPaidAmount,
+                            0
+                        )
+                        : 0,
+
+                isFullyPaid:
+
+                    false,
+
+                paymentStatus:
+
+                    'pending',
+
+                status:
+
+                    'pending',
+
+                bookedAt:
+
+                    new Date(),
+
+                expiresAt:
+
+                    new Date(
+                        now.getTime() +
+                        60 * 60 * 1000
+                    )
+
+            });
+
+
+        // =========================================================
+        // 14. CREATE RAZORPAY ORDER
+        // =========================================================
+
+        let razorpayOrder;
+
+        try {
+
+            razorpayOrder =
+                await rzp.orders.create({
+
+                    amount:
+                        Math.round(
+                            serverPaidAmount * 100
+                        ),
+
+                    currency:
+                        'INR',
+
+                    receipt:
+                        bookingId,
+
+                    notes: {
+
+                        bookingId:
+                            bookingId,
+
+                        userId:
+                            userId,
+
+                        turfId:
+                            turfId,
+
+                        sport:
+                            serverSport
+
+                    }
+
+                });
+
+        } catch (razorpayError) {
+
+            // Razorpay order was not created.
+            // Remove the pending DB record so
+            // retry does not get stuck.
+
+            await Booking.deleteOne({
+                _id:
+                    booking._id
+            });
+
+            throw razorpayError;
+
+        }
+
+
+        // =========================================================
+        // 15. SAVE RAZORPAY ORDER ID
+        // =========================================================
 
         booking.razorpayOrderId =
             razorpayOrder.id;
@@ -1308,17 +1652,27 @@ app.post('/api/payments/create-order', async (req, res) => {
         booking.orderId =
             razorpayOrder.id;
 
+
         await booking.save();
+
+
+        // =========================================================
+        // 16. RESPONSE
+        // =========================================================
 
         return res.status(200).json({
 
             success: true,
 
+            bookingId:
+                booking.bookingId,
+
+            // Keep both names for compatibility
             orderId:
                 razorpayOrder.id,
 
-            bookingId:
-                booking.bookingId,
+            order_id:
+                razorpayOrder.id,
 
             amount:
                 serverPaidAmount,
@@ -1342,7 +1696,9 @@ app.post('/api/payments/create-order', async (req, res) => {
                         0
                     )
                     : 0
+
         });
+
 
     } catch (error) {
 
@@ -1351,21 +1707,32 @@ app.post('/api/payments/create-order', async (req, res) => {
             error.message
         );
 
+
         if (error.code === 11000) {
 
             return res.status(409).json({
+
                 success: false,
+
                 message:
                     'Slot conflict detected'
+
             });
+
         }
 
+
         return res.status(500).json({
+
             success: false,
+
             message:
                 'Failed to create payment order'
+
         });
+
     }
+
 });
 
 app.post('/api/payments/verify-manual', async (req, res) => {
