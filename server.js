@@ -136,6 +136,11 @@ app.post('/api/webhook', express.raw({ type: 'application/json' }), async (req, 
         }
 
         const event = JSON.parse(req.body.toString());
+        console.log('========== RAZORPAY WEBHOOK ==========');
+console.log('Event:', event.event);
+console.log('Payment ID:', event.payload?.payment?.entity?.id);
+console.log('Order ID:', event.payload?.payment?.entity?.order_id);
+console.log('======================================');
 
         if (event.event === 'payment.captured') {
             const payment = event.payload.payment.entity;
