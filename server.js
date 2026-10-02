@@ -122,79 +122,289 @@ async function sendNotificationToTopic(topic, title, body, data = {}) {
         console.error(`[${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}] FCM Error: ${error.message}`);
     }
 }
-app.post('/api/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+
+app.post(
+  '/api/webhook',
+  express.raw({ type: 'application/json' }),
+  async (req, res) => {
     try {
-        const signature = req.headers['x-razorpay-signature'];
-        const generated = crypto
-            .createHmac('sha256', process.env.RAZORPAY_WEBHOOK_SECRET)
-            .update(req.body)
-            .digest('hex');
+      const signature = req.headers['x-razorpay-signature'];
 
-        if (generated !== signature) {
-             
-            return res.status(400).json({ success: false, message: 'Invalid signature' });
+      if (!signature) {
+        console.error('❌ Razorpay webhook signature missing');
+        return res.status(400).json({
+          success: false,
+          message: 'Missing webhook signature'
+        });
+      }
+
+      const generatedSignature = crypto
+        .createHmac(
+          'sha256',
+          process.env.RAZORPAY_WEBHOOK_SECRET
+        )
+        .update(req.body)
+        .digest('hex');
+
+      if (generatedSignature !== signature) {
+        console.error('❌ Invalid Razorpay webhook signature');
+
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid signature'
+        });
+      }
+      const event = JSON.parse(req.body.toString());
+
+      console.log('========== RAZORPAY WEBHOOK ==========');
+      console.log('Event:', event.event);
+      console.log(
+        'Payment ID:',
+        event.payload?.payment?.entity?.id
+      );
+      console.log(
+        'Order ID:',
+        event.payload?.payment?.entity?.order_id
+      );
+      console.log('======================================');
+
+      if (event.event !== 'payment.captured') {
+        console.log(
+          `ℹ️ Ignoring Razorpay event: ${event.event}`
+        );
+
+        return res.status(200).json({
+          success: true,
+          message: 'Event ignored'
+        });
+      }
+      const payment = event.payload?.payment?.entity;
+
+      if (!payment) {
+        console.error(
+          '❌ Payment entity missing from webhook'
+        );
+
+        return res.status(200).json({
+          success: true,
+          message: 'Payment entity missing'
+        });
+      }
+      const paymentId = payment.id;
+      const orderId = payment.order_id;
+
+      if (!paymentId || !orderId) {
+        console.error(
+          '❌ Missing paymentId or orderId',
+          {
+            paymentId,
+            orderId
+          }
+        );
+
+        return res.status(200).json({
+          success: true,
+          message: 'Missing payment information'
+        });
+      }
+
+      console.log('🔎 Searching booking...');
+      console.log('Razorpay Order ID:', orderId);
+      console.log('Razorpay Payment ID:', paymentId);
+
+      const booking = await Booking.findOne({
+        $or: [
+          { razorpayOrderId: orderId },
+          { orderId: orderId }
+        ]
+      });
+      if (!booking) {
+        console.warn(
+          '⚠️ Booking not found for Razorpay order:',
+          orderId
+        );
+        return res.status(200).json({
+          success: true,
+          message: 'Booking not found'
+        });
+      }
+
+      console.log('✅ Booking found:', booking.bookingId);
+      console.log('Current booking status:', booking.status);
+      const alreadyProcessed =
+        booking.status === 'confirmed' &&
+        booking.paymentId === paymentId;
+
+      if (alreadyProcessed) {
+        console.log(
+          'ℹ️ Webhook already processed for this payment:',
+          paymentId
+        );
+
+        return res.status(200).json({
+          success: true,
+          message: 'Payment already processed'
+        });
+      }
+      const isAdvance = booking.isAdvance === true;
+
+      const paidNow = Number(booking.paidAmount || 0);
+      const totalAmount = Number(booking.totalAmount || 0);
+
+      const balanceAmount = isAdvance
+        ? Math.max(totalAmount - paidNow, 0)
+        : 0;
+
+      const advanceAmount = isAdvance
+        ? paidNow
+        : totalAmount;
+
+      const paymentStatus = isAdvance
+        ? 'partial'
+        : 'full';
+
+      const isFullyPaid = !isAdvance;
+
+      await Booking.findOneAndUpdate(
+        { _id: booking._id },
+        {
+          $set: {
+            paymentId: paymentId,
+            razorpayPaymentId: paymentId,
+
+            status: 'confirmed',
+
+            paidAt: new Date(),
+
+            paymentStatus: paymentStatus,
+
+            isFullyPaid: isFullyPaid,
+
+            balanceAmount: balanceAmount,
+
+            advanceAmount: advanceAmount
+          }
         }
+      );
 
-        const event = JSON.parse(req.body.toString());
-        console.log('========== RAZORPAY WEBHOOK ==========');
-console.log('Event:', event.event);
-console.log('Payment ID:', event.payload?.payment?.entity?.id);
-console.log('Order ID:', event.payload?.payment?.entity?.order_id);
-console.log('======================================');
+      console.log(
+        '✅ Booking marked as CONFIRMED:',
+        booking.bookingId
+      );
 
-        if (event.event === 'payment.captured') {
-            const payment = event.payload.payment.entity;
-            const { payment_id, order_id } = payment;
+      const usersCollection =
+        mongoose.connection.db.collection('users');
 
-            // SEARCH BY razorpayOrderId — BULLETPROOF VERSION
-let booking = await Booking.findOne({
-    $or: [
-        { razorpayOrderId: order_id },
-        { orderId: order_id },
-        { razorpayPaymentId: order_id }  // extra safety in case someone mixed up
-    ]
-});
-
-
-
-            if (!booking) {
-                
-                return res.status(200).json({ success: true });
+      await usersCollection.updateOne(
+        {
+          firebaseUid: booking.userId
+        },
+        {
+          $pull: {
+            upcomingBookings: {
+              bookingId: booking.bookingId
             }
-
-            const wasAdvance = booking.isAdvance === true;
-            const paidNow = booking.paidAmount;
-            const total = booking.totalAmount;
-
-            await Booking.findOneAndUpdate(
-                { _id: booking._id },
-                {
-                    $set: {
-                        paymentId: payment_id,
-                        razorpayPaymentId: payment_id,
-                        status: 'confirmed',
-                        paidAt: new Date(),
-
-                        // FINAL CORRECT STATUS
-                        paymentStatus: wasAdvance ? 'partial' : 'full',
-                        isFullyPaid: !wasAdvance,
-                        balanceAmount: wasAdvance ? (total - paidNow) : 0,
-                        advanceAmount: wasAdvance ? paidNow : total,
-                    }
-                }
-            );
-
-           
+          }
         }
+      );
 
-        // Always respond 200 to Razorpay
-        res.status(200).json({ success: true });
+      const userPushResult = await usersCollection.updateOne(
+        {
+          firebaseUid: booking.userId
+        },
+        {
+          $push: {
+            upcomingBookings: {
+              bookingId: booking.bookingId,
+
+              turfId: booking.turfId,
+
+              turfName: booking.turfName,
+
+              date: booking.slots?.[0]?.date || null,
+
+              slots: booking.slots,
+
+              sport: booking.sport,
+
+              totalAmount: totalAmount,
+
+              paidAmount: paidNow,
+
+              balanceAmount: balanceAmount,
+
+              isAdvance: isAdvance,
+
+              advanceAmount: advanceAmount,
+
+              status: 'confirmed',
+
+              paymentStatus: paymentStatus,
+
+              paymentId: paymentId,
+
+              bookedAt: new Date()
+            }
+          }
+        }
+      );
+
+      console.log(
+        '👤 User upcomingBookings updated:',
+        userPushResult.modifiedCount
+      );
+
+      const heldSlotResult = await HeldSlot.deleteMany({
+        turfId: booking.turfId,
+
+        userId: booking.userId,
+
+        date: {
+          $in: booking.slots.map(
+            slot => slot.date
+          )
+        },
+
+        slot: {
+          $in: booking.slots.map(
+            slot => slot.slot
+          )
+        }
+      });
+
+      console.log(
+        '🗑️ Held slots removed:',
+        heldSlotResult.deletedCount
+      );
+
+      console.log('======================================');
+      console.log('✅ PAYMENT WEBHOOK PROCESSING COMPLETE');
+      console.log('Booking ID:', booking.bookingId);
+      console.log('Order ID:', orderId);
+      console.log('Payment ID:', paymentId);
+      console.log('Status: CONFIRMED');
+      console.log('======================================');
+
+      return res.status(200).json({
+        success: true,
+        message: 'Payment processed successfully'
+      });
+
     } catch (error) {
-        console.error('Webhook error:', error.message);
-        res.status(500).json({ success: false });
-    }
-});
 
+      console.error(
+        '❌ Razorpay webhook error:',
+        error.message
+      );
+
+      console.error(error.stack);
+      return res.status(500).json({
+        success: false,
+        message: 'Webhook processing failed'
+      });
+    }
+  }
+);
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
